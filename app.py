@@ -108,6 +108,7 @@ try:
 except:
     DOCX_AVAILABLE = False
 
+<<<<<<< HEAD
 # ========== GROQ API - STREAMLIT SECRETS + HARDCODE FALLBACK ==========
 groq_available = False
 client = None
@@ -125,13 +126,25 @@ except:
         # TRY 3: Hardcoded (Last Resort)
         GROQ_API_KEY = "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"
         print("✅ Key loaded from hardcoded fallback")
+=======
+# ========== GROQ API - DIRECT KEY (HARDCODED) ==========
+groq_available = False
+client = None
+
+# DIRECT KEY - TEMPORARY FIX
+GROQ_API_KEY = "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"
+>>>>>>> 030185566d376ddc84847686a381f2bd45243e77
 
 if GROQ_API_KEY:
     try:
         from groq import Groq
         client = Groq(api_key=GROQ_API_KEY)
         groq_available = True
+<<<<<<< HEAD
         print("✅ Groq Connected Successfully!")
+=======
+        print("✅ Groq Connected with Direct Key")
+>>>>>>> 030185566d376ddc84847686a381f2bd45243e77
     except Exception as e:
         print(f"❌ Groq Error: {e}")
         groq_available = False
