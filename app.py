@@ -108,50 +108,30 @@ try:
 except:
     DOCX_AVAILABLE = False
 
-<<<<<<< HEAD
-# ========== GROQ API - STREAMLIT SECRETS + HARDCODE FALLBACK ==========
+# ========== GROQ API ==========
 groq_available = False
 client = None
 
-# TRY 1: Streamlit Secrets (Cloud)
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-    print("✅ Key loaded from Streamlit Secrets")
 except:
-    # TRY 2: Environment Variable (Local)
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    if GROQ_API_KEY:
-        print("✅ Key loaded from .env file")
-    else:
-        # TRY 3: Hardcoded (Last Resort)
+    if not GROQ_API_KEY:
         GROQ_API_KEY = "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"
-        print("✅ Key loaded from hardcoded fallback")
-=======
-# ========== GROQ API - DIRECT KEY (HARDCODED) ==========
-groq_available = False
-client = None
-
-# DIRECT KEY - TEMPORARY FIX
-GROQ_API_KEY = "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"
->>>>>>> 030185566d376ddc84847686a381f2bd45243e77
 
 if GROQ_API_KEY:
     try:
         from groq import Groq
         client = Groq(api_key=GROQ_API_KEY)
         groq_available = True
-<<<<<<< HEAD
-        print("✅ Groq Connected Successfully!")
-=======
-        print("✅ Groq Connected with Direct Key")
->>>>>>> 030185566d376ddc84847686a381f2bd45243e77
+        print("✅ Groq Connected")
     except Exception as e:
         print(f"❌ Groq Error: {e}")
         groq_available = False
 
 def generate_with_groq(prompt):
     if not groq_available:
-        return "❌ Groq API not available. Check your API keys."
+        return "❌ Groq API not available"
     
     models_to_try = [
         'llama-3.3-70b-versatile',
@@ -168,10 +148,10 @@ def generate_with_groq(prompt):
                 max_tokens=2048
             )
             return response.choices[0].message.content
-        except Exception as e:
+        except:
             continue
     
-    return "❌ No models available. Please try again."
+    return "❌ No models available"
 
 with st.sidebar:
     st.markdown("## ⚙️ Configuration")
