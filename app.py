@@ -108,30 +108,25 @@ try:
 except:
     DOCX_AVAILABLE = False
 
-# ========== GROQ API ==========
+# ========== GROQ API - DIRECT HARDCODED KEY (FINAL) ==========
 groq_available = False
 client = None
 
-try:
-    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-except:
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    if not GROQ_API_KEY:
-        GROQ_API_KEY = "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"
+# ✅ DIRECT KEY - NO SECRETS, NO ENV
+GROQ_API_KEY = "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"
 
-if GROQ_API_KEY:
-    try:
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-        groq_available = True
-        print("✅ Groq Connected")
-    except Exception as e:
-        print(f"❌ Groq Error: {e}")
-        groq_available = False
+try:
+    from groq import Groq
+    client = Groq(api_key=GROQ_API_KEY)
+    groq_available = True
+    print("✅ Groq Connected Successfully!")
+except Exception as e:
+    print(f"❌ Groq Error: {e}")
+    groq_available = False
 
 def generate_with_groq(prompt):
     if not groq_available:
-        return "❌ Groq API not available"
+        return "❌ Groq API not available. Check your API keys."
     
     models_to_try = [
         'llama-3.3-70b-versatile',
@@ -148,10 +143,10 @@ def generate_with_groq(prompt):
                 max_tokens=2048
             )
             return response.choices[0].message.content
-        except:
+        except Exception as e:
             continue
     
-    return "❌ No models available"
+    return "❌ No models available. Please try again."
 
 with st.sidebar:
     st.markdown("## ⚙️ Configuration")
