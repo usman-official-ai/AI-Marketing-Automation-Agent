@@ -105,15 +105,27 @@ def set_theme():
 
 set_theme()
 
-# ========== DOCX IMPORT ==========
+# ========== PDF & DOCX IMPORTS ==========
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    REPORTLAB_AVAILABLE = True
+except:
+    REPORTLAB_AVAILABLE = False
+
 try:
     from docx import Document
     DOCX_AVAILABLE = True
 except:
     DOCX_AVAILABLE = False
 
-# ========== GROQ API ==========
+# ========== GROQ API - DIRECT KEY ==========
+# Direct key (temporary fix)
 GROQ_API_KEY = "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"
+
+# Try to load from .env if direct key fails
+if not GROQ_API_KEY:
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 groq_available = False
 client = None
@@ -128,8 +140,21 @@ if GROQ_API_KEY:
         print(f"❌ Groq Error: {e}")
         groq_available = False
 
+# ========== FALLBACK TO GEMINI IF GROQ FAILS ==========
+gemini_available = False
+try:
+    import google.generativeai as genai
+    GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")
+    if GEMINI_API_KEY:
+        genai.configure(api_key=GEMINI_API_KEY)
+        gemini_available = True
+        print("✅ Gemini Available as Fallback")
+except:
+    gemini_available = False
+
 # ========== GENERATION FUNCTION ==========
 def generate_with_groq(prompt):
+    """Generate using Groq API with multiple model fallback"""
     if not groq_available:
         return "❌ Groq API not available. Check your API key."
     
@@ -137,8 +162,10 @@ def generate_with_groq(prompt):
         'llama-3.3-70b-versatile',
         'llama-3.1-8b-instant',
         'gemma2-9b-it',
+        'deepseek-r1-distill-llama-70b',
     ]
     
+    last_error = None
     for model_name in models_to_try:
         try:
             response = client.chat.completions.create(
@@ -149,9 +176,19 @@ def generate_with_groq(prompt):
             )
             return response.choices[0].message.content
         except Exception as e:
+            last_error = str(e)
             continue
     
-    return "❌ No models available. Please try again."
+    # If all Groq models fail, try Gemini fallback
+    if gemini_available:
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"❌ All APIs failed. Groq: {last_error}, Gemini: {str(e)}"
+    
+    return f"❌ No models available. Last error: {last_error}"
 
 # ========== SIDEBAR ==========
 with st.sidebar:
@@ -181,6 +218,8 @@ with st.sidebar:
     st.markdown("### 🔑 API Status")
     if groq_available:
         st.success("✅ Groq API Connected")
+    elif gemini_available:
+        st.success("✅ Gemini API Connected (Fallback)")
     else:
         st.error("❌ No API Connected")
 
@@ -192,7 +231,7 @@ def is_valid():
     if not business_name or not industry:
         st.warning("⚠️ Please fill Business Name and Industry")
         return False
-    if not groq_available:
+    if not groq_available and not gemini_available:
         st.error("❌ No API available. Check your API keys.")
         return False
     return True
@@ -217,48 +256,54 @@ def generate(prompt_type, extra=""):
         time.sleep(0.3)
         return generate_with_groq(prompts.get(prompt_type, prompts["custom"]))
 
+# ========== PDF GENERATION ==========
+def make_pdf(content, title):
+    if not REPORTLAB_AVAILABLE:
+        return None
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    w, h = letter
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, h - 50, title)
+    c.line(50, h - 70, w - 50, h - 70)
+    c.setFont("Helvetica", 10)
+    y = h - 100
+    for line in content.split('\n'):
+        if y < 50:
+            c.showPage()
+            y = h - 50
+            c.setFont("Helvetica", 10)
+        c.drawString(50, y, line[:80])
+        y -= 18
+    c.save()
+    buffer.seek(0)
+    return buffer
+
 # ========== DOCX GENERATION ==========
 def make_docx(content, title):
     if not DOCX_AVAILABLE:
         return None
-    try:
-        doc = Document()
-        doc.add_heading(title, 0)
-        doc.add_paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        doc.add_paragraph("")
-        
-        for line in content.split('\n'):
-            if line.strip():
-                doc.add_paragraph(line)
-        
-        buffer = BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
-        return buffer
-    except:
-        return None
+    doc = Document()
+    doc.add_heading(title, 0)
+    for line in content.split('\n'):
+        if line.strip():
+            doc.add_paragraph(line)
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
 
-# ========== SHOW OUTPUT - SIRF DOCX ==========
 def show_output(content, title):
     st.markdown(content)
-    
-    # Create filename
-    safe_title = "".join(c for c in title if c.isalnum() or c in " _-")[:50]
-    filename = f"{safe_title}_{datetime.now().strftime('%Y%m%d_%H%M')}"
-    
-    # Sirf DOCX download button
-    docx_data = make_docx(content, title)
-    if docx_data:
-        st.download_button(
-            label="📝 Download DOCX",
-            data=docx_data,
-            file_name=f"{filename}.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            use_container_width=True,
-            key=f"docx_{filename}"
-        )
-    else:
-        st.warning("⚠️ DOCX unavailable. Install: pip install python-docx")
+    c1, c2 = st.columns(2)
+    with c1:
+        pdf = make_pdf(content, title)
+        if pdf:
+            st.download_button("📄 PDF", pdf, f"{title}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", use_container_width=True)
+    with c2:
+        docx = make_docx(content, title)
+        if docx:
+            st.download_button("📝 DOCX", docx, f"{title}_{datetime.now().strftime('%Y%m%d')}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
 
 # ========== TABS ==========
 t1, t2, t3, t4, t5 = st.tabs(["📝 Content", "💡 Ideas", "#️⃣ Hashtags", "✉️ Email", "🎨 Custom"])
@@ -300,15 +345,15 @@ with t5:
             show_output(result, f"Custom_{business_name}")
 
 st.divider()
-st.caption("🚀 AI Marketing Automation Agent | Powered by Groq API")
+st.caption("🚀 AI Marketing Automation Agent | Powered by Groq API (Fallback: Gemini)")
 
 with st.expander("ℹ️ System Status"):
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("DOCX", "✅" if DOCX_AVAILABLE else "❌")
+        st.metric("ReportLab", "✅" if REPORTLAB_AVAILABLE else "❌")
     with c2:
-        st.metric("Groq API", "✅" if groq_available else "❌")
+        st.metric("DOCX", "✅" if DOCX_AVAILABLE else "❌")
     with c3:
-        st.metric("Theme", "🌙" if st.session_state.theme == 'dark' else "☀️")
+        st.metric("Groq API", "✅" if groq_available else "❌")
     with c4:
-        st.metric("PDF", "❌ Removed")
+        st.metric("Theme", "🌙" if st.session_state.theme == 'dark' else "☀️")
