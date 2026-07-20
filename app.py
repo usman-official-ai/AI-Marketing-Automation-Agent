@@ -5,17 +5,14 @@ from datetime import datetime
 from io import BytesIO
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# ========== PAGE CONFIG ==========
 st.set_page_config(
     page_title="AI Marketing Automation Agent",
     page_icon="🚀",
     layout="wide"
 )
 
-# ========== THEME ==========
 if 'theme' not in st.session_state:
     st.session_state.theme = 'dark'
 
@@ -105,33 +102,43 @@ def set_theme():
 
 set_theme()
 
-# ========== DOCX IMPORT ==========
 try:
     from docx import Document
     DOCX_AVAILABLE = True
 except:
     DOCX_AVAILABLE = False
 
-# ========== GROQ API ==========
-GROQ_API_KEY = "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"
-
+# ========== GROQ API - STREAMLIT SECRETS + HARDCODE FALLBACK ==========
 groq_available = False
 client = None
+
+# TRY 1: Streamlit Secrets (Cloud)
+try:
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    print("✅ Key loaded from Streamlit Secrets")
+except:
+    # TRY 2: Environment Variable (Local)
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    if GROQ_API_KEY:
+        print("✅ Key loaded from .env file")
+    else:
+        # TRY 3: Hardcoded (Last Resort)
+        GROQ_API_KEY = "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"
+        print("✅ Key loaded from hardcoded fallback")
 
 if GROQ_API_KEY:
     try:
         from groq import Groq
         client = Groq(api_key=GROQ_API_KEY)
         groq_available = True
-        print("✅ Groq Connected")
+        print("✅ Groq Connected Successfully!")
     except Exception as e:
         print(f"❌ Groq Error: {e}")
         groq_available = False
 
-# ========== GENERATION FUNCTION ==========
 def generate_with_groq(prompt):
     if not groq_available:
-        return "❌ Groq API not available. Check your API key."
+        return "❌ Groq API not available. Check your API keys."
     
     models_to_try = [
         'llama-3.3-70b-versatile',
@@ -153,7 +160,6 @@ def generate_with_groq(prompt):
     
     return "❌ No models available. Please try again."
 
-# ========== SIDEBAR ==========
 with st.sidebar:
     st.markdown("## ⚙️ Configuration")
     
@@ -182,9 +188,8 @@ with st.sidebar:
     if groq_available:
         st.success("✅ Groq API Connected")
     else:
-        st.error("❌ No API Connected")
+        st.error("❌ No API Available")
 
-# ========== MAIN ==========
 st.markdown("# 🚀 AI Marketing Automation Agent")
 st.markdown("Generate marketing content, hashtags, emails, and campaigns using AI.")
 
@@ -217,7 +222,6 @@ def generate(prompt_type, extra=""):
         time.sleep(0.3)
         return generate_with_groq(prompts.get(prompt_type, prompts["custom"]))
 
-# ========== DOCX GENERATION ==========
 def make_docx(content, title):
     if not DOCX_AVAILABLE:
         return None
@@ -238,15 +242,12 @@ def make_docx(content, title):
     except:
         return None
 
-# ========== SHOW OUTPUT - SIRF DOCX ==========
 def show_output(content, title):
     st.markdown(content)
     
-    # Create filename
     safe_title = "".join(c for c in title if c.isalnum() or c in " _-")[:50]
     filename = f"{safe_title}_{datetime.now().strftime('%Y%m%d_%H%M')}"
     
-    # Sirf DOCX download button
     docx_data = make_docx(content, title)
     if docx_data:
         st.download_button(
@@ -254,13 +255,11 @@ def show_output(content, title):
             data=docx_data,
             file_name=f"{filename}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            use_container_width=True,
-            key=f"docx_{filename}"
+            use_container_width=True
         )
     else:
-        st.warning("⚠️ DOCX unavailable. Install: pip install python-docx")
+        st.warning("⚠️ DOCX unavailable")
 
-# ========== TABS ==========
 t1, t2, t3, t4, t5 = st.tabs(["📝 Content", "💡 Ideas", "#️⃣ Hashtags", "✉️ Email", "🎨 Custom"])
 
 with t1:
@@ -294,7 +293,7 @@ with t4:
 with t5:
     st.subheader("🎨 Custom Prompt")
     if is_valid():
-        custom = st.text_area("Your prompt", height=120, placeholder="Write a LinkedIn post about our product...")
+        custom = st.text_area("Your prompt", height=120, placeholder="Write a LinkedIn post...")
         if st.button("🚀 Generate", use_container_width=True) and custom:
             result = generate("custom", custom)
             show_output(result, f"Custom_{business_name}")
