@@ -108,12 +108,12 @@ try:
 except:
     DOCX_AVAILABLE = False
 
-# ========== GROQ API - DIRECT HARDCODED KEY (FINAL) ==========
+# ========== GROQ API - NEW KEY UPDATED ==========
 groq_available = False
 client = None
 
-# ✅ DIRECT KEY - NO SECRETS, NO ENV
-GROQ_API_KEY = "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"
+# ✅ NEW KEY
+GROQ_API_KEY = "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"
 
 try:
     from groq import Groq
@@ -129,10 +129,10 @@ def generate_with_groq(prompt):
         return "❌ Groq API not available. Check your API keys."
     
     models_to_try = [
-       'llama3-70b-8192',
-    'llama3-8b-8192',
-    'mixtral-8x7b-32768',
-    'gemma2-9b-it',
+        'llama3-70b-8192',
+        'llama3-8b-8192',
+        'mixtral-8x7b-32768',
+        'gemma2-9b-it',
     ]
     
     for model_name in models_to_try:
