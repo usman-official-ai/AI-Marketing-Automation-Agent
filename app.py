@@ -129,10 +129,10 @@ def generate_with_groq(prompt):
         return "❌ Groq API not available. Check your API keys."
     
     models_to_try = [
-        'llama3-70b-8192',
-        'llama3-8b-8192',
-        'mixtral-8x7b-32768',
-        'gemma2-9b-it',
+         'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'llama3-70b-8192',
+    'llama3-8b-8192',
     ]
     
     for model_name in models_to_try:
